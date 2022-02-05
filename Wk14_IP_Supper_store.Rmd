@@ -1,0 +1,355 @@
+---
+title: "Supper_store_IP"
+author: "Stephen Njuguna"
+date: "2/4/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Supper Market, Marketing Strategy 
+
+## Defining the question 
+
+Coming up with the best marketing strategy 
+
+## Defining the metric for success
+
+Being able to inform the marketing the department of the best marketing the strategy 
+that will result to the highest number of sales.
+
+## Understanding the context
+
+Marketing strategy provides an organization an edge over it's competitors. Strategy helps in developing goods and services with best profit making potential. It also helps an organization to make optimum utilization of its resources so as to provide a sales message to it's target market and increase its profit margins.
+
+## Experimental design
+
+  * Data Cleaning and Preparation
+  * Deal with missing values
+  * Deal with duplicated records
+  * Univariate Analysis
+  * Bivariate Analysis
+  * Multivariate Analysis
+  * Dimension Reduction
+  * Feature Selection
+  * Association Analysis
+  * Anomaly Reduction 
+  * Conclusion
+  * Recommendations 
+
+
+## Reading data 
+
+```{r}
+#Loading dataset 
+supper_df <- read.csv('http://bit.ly/CarreFourDataset')
+head(supper_df)
+```
+```{r}
+#Preview the data types  
+
+str(supper_df)
+
+```
+
+```{r}
+#Preview dataset dimension 
+dim(supper_df)
+```
+## Data Cleaning 
+
+```{r}
+#Checking for missing values
+colSums(is.na(supper_df))
+```
+
+```{r}
+#Checking for duplicates and dealing with them 
+supper_df <- unique(supper_df)
+
+```
+
+
+
+## Exploratory Data Analysis
+
+### Univeriate Analysis 
+
+```{r}
+#Previewing statistical analysis of the dataset 
+numeric_supper_df <- supper_df[c('Unit.price','Quantity','Tax','cogs','gross.margin.percentage','gross.income','Rating','Total')]
+
+summary(numeric_supper_df)
+
+```
+
+```{r}
+#Plot customer type
+table(supper_df$Payment)
+barplot(table(supper_df$Payment))
+```
+
+Most customers are paying with cash and Ewallet
+
+
+```{r}
+#Plot products that most customers by 
+table(supper_df$Product.line)
+barplot(table(supper_df$Product.line))
+```
+
+
+Fashion accessories are the most bought products followed closely by food and beverages,
+the least bought products are health and beauty.
+
+## Biavariate Analysis
+
+
+```{r}
+#Plot stacked bar plot of branch and product sales 
+library(ggplot2)
+ggplot(supper_df, aes(fill=supper_df$Product.line, y=supper_df$Total, x=supper_df$Branch)) + 
+    geom_bar(position="fill", stat="identity")
+
+
+```
+
+Some observations :
+  * All the branch have equal sale of electronic accessories.
+  * Branch c has highest sale of fashion accessories.
+  * Branch c has highest sales of food and beverages.
+  * Branch A has highest sale of home and lifestyle compared to the others.
+
+
+```{r}
+#Plot bar plot of branch and and rate
+
+rate <- aggregate(supper_df$Rating, list(supper_df$Branch), FUN=mean)
+
+barplot(x ~ Group.1,data = rate)
+```
+
+
+Branch B of the supper market has the least rating 
+
+
+```{r}
+#Plot bar plot of branch and and total sales
+
+total <- aggregate(supper_df$Total, list(supper_df$Branch), FUN=mean)
+
+barplot(x ~ Group.1,data = total)
+```
+
+Branch A of the supper market has the least sales
+
+```{r}
+#Plot scatter plot of total sales and rating 
+
+plot(supper_df$Total, supper_df$Rating, xlab="Total sales", ylab="Rating")
+```
+
+There is a high correlation between between sales and rating.
+
+
+## Multivariate Analysis
+
+### Dimension Reduction 
+
+**t-Distributed Stochastic Neighbor Embedding (t-SNE)**
+
+```{r}
+#Label Encoding Categorical to numeric data
+supper_df$Branch <- as.numeric(factor(supper_df$Branch))
+supper_df$Customer.type <- as.numeric(factor(supper_df$Customer.type))
+supper_df$Gender <- as.null(factor(supper_df$Gender))
+supper_df$Product.line <- as.numeric(factor(supper_df$Product.line))
+supper_df$Payment <- as.numeric(factor(supper_df$Payment))
+```
+
+
+```{r}
+#Selecting the numeric data
+library(dplyr)
+new_df <- select_if(supper_df, is.numeric)
+
+```
+
+
+```{r}
+#Create t-sne model 
+library(Rtsne)
+# Executing the algorithm 
+tsne <- Rtsne(new_df, dims = 2, perplexity=30, verbose=TRUE, max_iter = 500)
+
+# Getting the duration of execution
+exeTimeTsne <- system.time(Rtsne(new_df, dims = 2, perplexity=30, verbose=TRUE, max_iter = 500))
+```
+
+```{r}
+# Plotting our graph and closely examining the graph
+plot(tsne$Y, t='n', main="tsne")
+text(tsne$Y)
+
+```
+
+### Feature selection 
+
+**Filter Methods**
+
+```{r}
+#Import Libraries
+library(corrplot)
+library(caret)
+
+# Calculating the correlation matrix
+cor_Matrix <- cor(new_df)
+# Find attributes that are highly correlated
+
+high_Correlated <- findCorrelation(cor_Matrix, cutoff=0.75)
+```
+
+```{r}
+# Show the highly correlated attributes
+
+high_Correlated
+
+names(new_df[,high_Correlated])
+```
+
+
+Tax, Cogs and Gross income are the attributes that are highly correlated.
+
+
+## Assocaition Analysis
+
+```{r}
+# Loading the arules library
+library(arules)
+#Loading the dataset 
+trans_df <- read.transactions('http://bit.ly/SupermarketDatasetII',sep = ',',rm.duplicates = TRUE)
+
+#Inspect transaction class
+
+class(trans_df)
+```
+
+```{r}
+#Inspect the top transactions
+inspect(trans_df[1:5])
+```
+
+```{r}
+#Previewing the summary of the transaction 
+summary(trans_df)
+```
+
+Mineral water and eggs are among the top purchased items from the supermarket 
+
+
+```{r}
+# Displaying top 10 most common items in the transactions data 
+# and the items whose relative importance is at least 10%
+
+par(mfrow = c(1, 2))
+
+# plot the frequency of items
+itemFrequencyPlot(trans_df, topN = 10,col="darkgreen")
+itemFrequencyPlot(trans_df, support = 0.1,col="darkred")
+```
+
+Mineral water ,eggs and spaghetti are among the most bought items in the supermarket
+but also are among the items that have less that 10% importance.
+
+
+```{r}
+#Creating the association analysis(Apriori model) model 
+rule <- apriori (trans_df, parameter = list(supp = 0.001, conf = 0.8))
+rule
+```
+
+With a confidence of 0.8 and association of 0.001 the model as 74 rules.
+
+
+```{r}
+#Previewing the summary of the rules 
+summary(rule)
+```
+
+```{r}
+#Observing some of the rules built by the model 
+inspect(rule[1:5])
+```
+
+
+## Anomaly Detection 
+
+### Tidy Anomaly Detection
+
+```{r}
+#Import library 
+library(anomalize) 
+library(tidyverse)
+```
+
+
+```{r}
+#Load dataset 
+
+library(tibbletime)
+sales<- read.csv('http://bit.ly/CarreFourSalesDataset')
+sales <- unique(sales)
+#head(sales)
+#Converting column Date to Date type 
+sales$Date <- as.Date(sales$Date , format = '%m/%d/%Y')
+
+#Data preprocessing converting data frame to tibble 
+sales_tb <-  sales %>%as_tbl_time(Date)
+
+#Anomaly detection model
+sales_tb %>%
+  group_by(Date) %>%
+  summarise(Orders = sum(Sales)) %>%
+  time_decompose(Orders, method = "twitter", frequency = "auto", trend = "auto") %>%
+  anomalize(remainder,method = "gesd", alpha = 0.05, max_anoms = 0.2) %>%
+  time_recompose() %>%
+  # Anomaly Visualization
+  plot_anomaly_decomposition()
+
+```
+
+
+## Conclusion 
+
+  * Fashion accessories are the most bought products followed closely by food and beverages,
+  the least bought are health and beauty products.
+  * All the branch have equal sale of electronic accessories.
+  * Branch c has highest sale of fashion accessories.
+  * Branch c has highest sales of food and beverages.
+  * Branch A has highest sale of home and lifestyle compared to the others.
+  * Branch A has the least total sales 
+  * Branch B has the least rating 
+  * The is a strong positive correlation between sales and rating 
+  
+  
+## Recommendations 
+
+  * Improve customer service in branch B, this will improve total sales as we have
+  seen that is a strong positive correlation between sales and ratings.
+  * Since there is big percentage of customers paying using E-wallet, you can run 
+  online advertisements using the association analysis model.
+  * Put more resources on each branch on the products that they least sale.Run more promotions 
+  on those products. 
+  * Put more marketing resources on branch A, since it has the least sales. 
+  
+
+
+
+
+
+
+
+
+
